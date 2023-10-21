@@ -1,0 +1,55 @@
+[
+    {
+        "id": "youtube",
+        "packageName": "com.google.android.youtube",
+        "moduleId": "revanced-youtube",
+        "moduleName": "YouTube ReVanced",
+        "integrations": true,
+        "patchOptions": [],
+        "patches": [
+            "Hide ads",
+            "Minimized playback",
+            "Video ads"
+        ]
+    },
+    {
+        "id": "youtube-music",
+        "packageName": "com.google.android.apps.youtube.music",
+        "moduleId": "revanced-youtube-music",
+        "moduleName": "YouTube Music ReVanced",
+        "integrations": false,
+        "patchOptions": [],
+        "patches": [
+            "Background play",
+            "Codecs unlock",
+            "Exclusive audio playback",
+            "Hide get premium",
+            "Minimized playback music",
+            "Music video ads",
+            "Remove upgrade button"
+        ]
+    },
+    {
+        "id": "reddit",
+        "packageName": "com.reddit.frontpage",
+        "moduleId": "revanced-reddit",
+        "moduleName": "Reddit ReVanced",
+        "integrations": true,
+        "patchOptions": [],
+        "patches": [
+            "Hide ads",
+            "Sanitize sharing links"
+        ]
+    },
+    {
+        "id": "twitter",
+        "packageName": "com.twitter.android",
+        "moduleId": "revanced-twitter",
+        "moduleName": "Twitter ReVanced",
+        "integrations": true,
+        "patchOptions": [],
+        "patches": [
+            "Hide ads"
+        ]
+    }
+]
