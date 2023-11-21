@@ -55,6 +55,9 @@ getAppInfo() {
     packageName=$(echo $app | jq -rc ".packageName")
     moduleId=$(echo $app | jq -rc ".moduleId")
     moduleName=$(echo $app | jq -rc ".moduleName")
+    branch=$(echo $app | jq -rc ".branch")
+    build=$(echo $app | jq -rc ".build")
+    magisk=$(echo $app | jq -rc ".magisk")
     integrations=$(echo $app | jq -rc ".integrations")
     patchOptions=$(echo $app | jq -rc ".patchOptions")
     patches=$(echo $app | jq -rc ".patches[]")
@@ -207,54 +210,38 @@ fi
 getApkInfo "$baseApk"
 
 if [ -f "$baseApk" ] && [ -s "$baseApk" ]; then
-    buildFlag=0
-    if [[ "$2" == "--build" ]] || [[ "$3" == "--build" ]] || [[ "$4" == "--build" ]]; then
-        buildFlag=1
-    fi
-
-    magiskFlag=0
-    if [[ "$2" == "--magisk" ]] || [[ "$3" == "--magisk" ]] || [[ "$4" == "--magisk" ]]; then
-        magiskFlag=1
-    fi
-
-    devFlag=0
-    if [[ "$2" == "--dev" ]] || [[ "$3" == "--dev" ]] || [[ "$4" == "--dev" ]]; then
-        devFlag=1
-    fi
-
-    revancedBranch="main"
-    if [ "$devFlag" == 1 ]; then
-        revancedBranch="dev"
-    fi
-
-    if [ "$buildFlag" == 1 ]; then
+    if [[ "$build" == "true" ]]; then
         echo
         echo "--> Building revanced-patcher"
-        buildRepo revanced revanced-patcher "$revancedBranch" build "$outDir"/revanced-patcher.jar
-
-        echo
-        echo "--> Building revanced-patches"
-        buildRepo revanced revanced-patches "$revancedBranch" build "$outDir"/revanced-patches.jar
+        buildRepo revanced revanced-patcher "$branch" build "$outDir"/revanced-patcher.jar
 
         echo
         echo "--> Building revanced-cli"
-        buildRepo revanced revanced-cli "$revancedBranch" build "$outDir"/revanced-cli.jar
+        buildRepo revanced revanced-cli "$branch" build "$outDir"/revanced-cli.jar
 
         echo
-        echo "--> Building revanced-integrations"
-        buildRepo revanced revanced-integrations "$revancedBranch" assembleRelease "$outDir"/revanced-integrations.apk
+        echo "--> Building revanced-patches"
+        buildRepo revanced revanced-patches "$branch" build "$outDir"/revanced-patches.jar
+
+        if [[ "$integrations" == "true" ]]; then
+            echo
+            echo "--> Building revanced-integrations"
+            buildRepo revanced revanced-integrations "$branch" assembleRelease "$outDir"/revanced-integrations.apk
+        fi
     else
         echo
-        echo "--> Downloading revanced-patches"
-        downloadBins revanced revanced-patches "$revancedBranch" "$outDir"/revanced-patches.jar
-
-        echo
         echo "--> Downloading revanced-cli"
-        downloadBins revanced revanced-cli "$revancedBranch" "$outDir"/revanced-cli.jar
+        downloadBins revanced revanced-cli "$branch" "$outDir"/revanced-cli.jar
 
         echo
-        echo "--> Downloading revanced-integrations"
-        downloadBins revanced revanced-integrations "$revancedBranch" "$outDir"/revanced-integrations.apk
+        echo "--> Downloading revanced-patches"
+        downloadBins revanced revanced-patches "$branch" "$outDir"/revanced-patches.jar
+
+        if [[ "$integrations" == "true" ]]; then
+            echo
+            echo "--> Downloading revanced-integrations"
+            downloadBins revanced revanced-integrations "$branch" "$outDir"/revanced-integrations.apk
+        fi
     fi
 
     echo
@@ -262,7 +249,7 @@ if [ -f "$baseApk" ] && [ -s "$baseApk" ]; then
     patchApk
 
     if [ -f "$outDir"/revanced.apk ]; then
-        if [ "$magiskFlag" == 1 ]; then
+        if [[ "$magisk" == "true" ]]; then
             echo
             echo "--> Building Magisk module"
             buildMagisk

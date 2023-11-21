@@ -4,6 +4,9 @@
         "packageName": "com.google.android.youtube",
         "moduleId": "revanced-youtube",
         "moduleName": "YouTube ReVanced",
+        "branch": "dev",
+        "build": false,
+        "magisk": true,
         "integrations": true,
         "patchOptions": [],
         "patches": [
@@ -13,10 +16,13 @@
         ]
     },
     {
-        "id": "youtube-music",
+        "id": "music",
         "packageName": "com.google.android.apps.youtube.music",
         "moduleId": "revanced-youtube-music",
         "moduleName": "YouTube Music ReVanced",
+        "branch": "dev",
+        "build": false,
+        "magisk": true,
         "integrations": false,
         "patchOptions": [],
         "patches": [
@@ -34,6 +40,9 @@
         "packageName": "com.reddit.frontpage",
         "moduleId": "revanced-reddit",
         "moduleName": "Reddit ReVanced",
+        "branch": "dev",
+        "build": false,
+        "magisk": true,
         "integrations": true,
         "patchOptions": [],
         "patches": [
@@ -46,6 +55,9 @@
         "packageName": "com.twitter.android",
         "moduleId": "revanced-twitter",
         "moduleName": "Twitter ReVanced",
+        "branch": "dev",
+        "build": false,
+        "magisk": true,
         "integrations": true,
         "patchOptions": [],
         "patches": [
