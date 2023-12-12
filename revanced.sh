@@ -71,8 +71,20 @@ getAppInfo() {
     done <<< "$patches"
 }
 
+getLastVersion() {
+    if [[ "$packageName" == "com.google.android.youtube" ]]; then
+        compatVersion=$(eval curl -s "https://api.revanced.app/v2/patches/latest" | \
+            jq -rc "[.patches[] | select(.compatiblePackages[0].name==\"$packageName\" and \
+                     .compatiblePackages[0].versions != null)] | first | .compatiblePackages[0].versions | last")
+        downVersion="phone-$compatVersion-apk"
+    else
+        downVersion="phone-apk"
+    fi
+}
+
 downloadApk() {
-    link=$(eval curl -s "https://apkcombo.com/$id/$packageName/download/apk" | grep "arm64-v8a" -A10 | \
+    getLastVersion
+    link=$(eval curl -s "https://apkcombo.com/$id/$packageName/download/$downVersion" | grep "arm64-v8a" -A10 | \
         grep -oPm1 "(?<=href=\")https://download.apkcombo.com/.*?(?=\")")\&$(curl -s "https://apkcombo.com/checkin")
     wget -q "$link" -O "$outDir"/original.apk || true
     if [ ! -f "$outDir"/original.apk ] || [ ! -s "$outDir"/original.apk ]; then
