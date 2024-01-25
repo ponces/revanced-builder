@@ -29,6 +29,7 @@ getAppInfo() {
     app=$(cat "$PWD"/config.json | jq -r ".[] | select($filter)")
     id=$(echo $app | jq -r ".id")
     org=$(echo $app | jq -r ".org")
+    version=$(echo $app | jq -r ".version")
     moduleId=$(echo $app | jq -r ".moduleId")
     moduleName=$(echo $app | jq -r ".moduleName")
     branch=$(echo $app | jq -r ".branch")
@@ -47,21 +48,25 @@ getAppInfo() {
     done <<< "$patches"
 }
 
-getLastVersion() {
-    lastTag=$(curl -s https://api.github.com/repos/revanced/revanced-patches/releases | \
-              jq -r 'map(select(.prerelease)) | first | .tag_name')
-    if [[ "$id" == "youtube" ]]; then
-        compatVersion=$(curl -s "https://api.revanced.app/v2/patches/$lastTag" | \
-                        jq -r "[.patches[] | select(.compatiblePackages[0].name==\"com.google.android.youtube\" and \
-                                 .compatiblePackages[0].versions != null)] | first | .compatiblePackages[0].versions | last")
+getDownloadVersion() {
+    if [[ "$version" == "compatible" ]]; then
+        lastTag=$(curl -s https://api.github.com/repos/revanced/revanced-patches/releases | \
+                jq -r 'map(select(.prerelease)) | first | .tag_name')
+        if [[ "$id" == "youtube" ]]; then
+            downVersion=$(curl -s "https://api.revanced.app/v2/patches/$lastTag" | \
+                          jq -r "[.patches[] | select(.compatiblePackages[0].name==\"com.google.android.youtube\" and \
+                                  .compatiblePackages[0].versions != null)] | first | .compatiblePackages[0].versions | last")
+        fi
+    else
+        downVersion="$version"
     fi
 }
 
 downloadApk() {
-    getLastVersion
+    getDownloadVersion
     downFile="./downloads/original.apk"
-    if [ ! -z "$compatVersion" ]; then
-        versionFilter=",\"version\":\"$compatVersion\""
+    if [[ "$downVersion" != "latest" ]]; then
+        versionFilter=",\"version\":\"$downVersion\""
     fi
     mkdir "$outDir"/down
     pushd "$outDir"/down &>/dev/null
