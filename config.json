@@ -1,7 +1,7 @@
 [
     {
         "id": "youtube",
-        "packageName": "com.google.android.youtube",
+        "org": "google-inc",
         "moduleId": "revanced-youtube",
         "moduleName": "YouTube ReVanced",
         "branch": "dev",
@@ -16,8 +16,8 @@
         ]
     },
     {
-        "id": "music",
-        "packageName": "com.google.android.apps.youtube.music",
+        "id": "youtube-music",
+        "org": "google-inc",
         "moduleId": "revanced-youtube-music",
         "moduleName": "YouTube Music ReVanced",
         "branch": "dev",
@@ -37,7 +37,7 @@
     },
     {
         "id": "reddit",
-        "packageName": "com.reddit.frontpage",
+        "org": "redditinc",
         "moduleId": "revanced-reddit",
         "moduleName": "Reddit ReVanced",
         "branch": "dev",
@@ -52,7 +52,7 @@
     },
     {
         "id": "twitter",
-        "packageName": "com.twitter.android",
+        "org": "x-corp",
         "moduleId": "revanced-twitter",
         "moduleName": "Twitter ReVanced",
         "branch": "dev",

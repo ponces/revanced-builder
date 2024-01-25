@@ -15,30 +15,6 @@ export LD_LIBRARY_PATH=$JAVA_HOME/lib:$LD_LIBRARY_PATH
 
 outDir="$PWD/out"
 
-if [ ! -f "$PWD/config.json" ]; then
-    echo
-    echo "--!> No app info file found!"
-    echo
-    echo "Exiting..."
-    echo
-    exit 1
-fi
-
-if [ ! -f "$HOME/.gradle/gradle.properties" ]; then
-    echo
-    echo "You need to create a Github PAT token with the link below and add it to ~/.gradle/gradle.properties"
-    echo "https://github.com/settings/tokens/new?scopes=read:packages&description=ReVanced"
-    echo
-    echo "Example:"
-    echo " $ cat ~/.gradle/gradle.properties"
-    echo " gpr.user = <github username>"
-    echo " gpr.key = <token>"
-    echo
-    echo "Exiting..."
-    echo
-    exit 1
-fi
-
 clean() {
     rm -rf "$outDir"
     rm -rf $HOME/.local/share/apktool
@@ -50,17 +26,17 @@ getAppInfo() {
         filter=".packageName==\"$1\""
     fi
 
-    app=$(cat "$PWD"/config.json | jq -rc ".[] | select($filter)")
-    id=$(echo $app | jq -rc ".id")
-    packageName=$(echo $app | jq -rc ".packageName")
-    moduleId=$(echo $app | jq -rc ".moduleId")
-    moduleName=$(echo $app | jq -rc ".moduleName")
-    branch=$(echo $app | jq -rc ".branch")
-    build=$(echo $app | jq -rc ".build")
-    magisk=$(echo $app | jq -rc ".magisk")
-    integrations=$(echo $app | jq -rc ".integrations")
-    patchOptions=$(echo $app | jq -rc ".patchOptions")
-    patches=$(echo $app | jq -rc ".patches[]")
+    app=$(cat "$PWD"/config.json | jq -r ".[] | select($filter)")
+    id=$(echo $app | jq -r ".id")
+    org=$(echo $app | jq -r ".org")
+    moduleId=$(echo $app | jq -r ".moduleId")
+    moduleName=$(echo $app | jq -r ".moduleName")
+    branch=$(echo $app | jq -r ".branch")
+    build=$(echo $app | jq -r ".build")
+    magisk=$(echo $app | jq -r ".magisk")
+    integrations=$(echo $app | jq -r ".integrations")
+    patchOptions=$(echo $app | jq -r ".patchOptions")
+    patches=$(echo $app | jq -r ".patches[]")
 
     options=""
     if [[ "$integrations" == "true" ]]; then
@@ -72,34 +48,44 @@ getAppInfo() {
 }
 
 getLastVersion() {
-    if [[ "$packageName" == "com.google.android.youtube" ]]; then
-        compatVersion=$(eval curl -s "https://api.revanced.app/v2/patches/latest" | \
-            jq -rc "[.patches[] | select(.compatiblePackages[0].name==\"$packageName\" and \
-                     .compatiblePackages[0].versions != null)] | first | .compatiblePackages[0].versions | last")
-        downVersion="phone-$compatVersion-apk"
-    else
-        downVersion="phone-apk"
+    lastTag=$(curl -s https://api.github.com/repos/revanced/revanced-patches/releases | \
+              jq -r 'map(select(.prerelease)) | first | .tag_name')
+    if [[ "$id" == "youtube" ]]; then
+        compatVersion=$(curl -s "https://api.revanced.app/v2/patches/$lastTag" | \
+                        jq -r "[.patches[] | select(.compatiblePackages[0].name==\"com.google.android.youtube\" and \
+                                 .compatiblePackages[0].versions != null)] | first | .compatiblePackages[0].versions | last")
     fi
 }
 
 downloadApk() {
     getLastVersion
-    link=$(eval curl -s "https://apkcombo.com/$id/$packageName/download/$downVersion" | grep "arm64-v8a" -A10 | \
-        grep -oPm1 "(?<=href=\")https://download.apkcombo.com/.*?(?=\")")\&$(curl -s "https://apkcombo.com/checkin")
-    wget -q "$link" -O "$outDir"/original.apk || true
-    if [ ! -f "$outDir"/original.apk ] || [ ! -s "$outDir"/original.apk ]; then
-        link=$(eval curl -s -A "Mozilla/5.0 \(X11\; Linux x86_64\; rv:60.0\) Gecko/20100101 Firefox/81.0" \
-            "https://d.apkpure.com/b/APK/$packageName?version=latest" | sed -n 's/.*href="\([^"]*\).*/\1/p' | sed 's/\&amp;/\&/g')
-        wget -q "$link" -O "$outDir"/original.apk || true
+    downFile="./downloads/original.apk"
+    if [ ! -z "$compatVersion" ]; then
+        versionFilter=",\"version\":\"$compatVersion\""
     fi
+    mkdir "$outDir"/down
+    pushd "$outDir"/down &>/dev/null
+    wget -q https://github.com/tanishqmanuja/apkmirror-downloader/releases/latest/download/apkmd && chmod +x apkmd
+    json="{\"options\":{\"arch\":\"arm64-v8a\"},\"apps\":[{\"name\":\"original\",\"org\":\"$org\",\"repo\":\"$id\"$versionFilter}]}"
+    echo "$json" | ./apkmd /dev/stdin &>/dev/null
+    if [ ! -f "$downFile" ] || [ ! -s "$downFile" ]; then
+        json="{\"options\":{\"arch\":\"universal\"},\"apps\":[{\"name\":\"original\",\"org\":\"$org\",\"repo\":\"$id\"$versionFilter}]}"
+        echo "$json" | ./apkmd /dev/stdin &>/dev/null
+    fi
+    if [ -f "$downFile" ] && [ -s "$downFile" ]; then
+        cp "$downFile" "$outDir"/original.apk
+    fi
+    popd &>/dev/null
 }
 
 getApkInfo() {
-    applicationName=$(aapt2 dump badging "$1" | grep "application-label:" | sed -e "s/.*application-label:'//" -e "s/'.*//")
-    outVersion=$(aapt2 dump badging "$1" | grep versionName | sed -e "s/.*versionName='//" -e "s/' .*//")
-    echo "    - Application: $applicationName"
-    echo "    - Package: $packageName"
-    echo "    - Version: $outVersion"
+    apkInfo=$(aapt2 dump badging "$1")
+    applicationName=$(echo "$apkInfo" | grep "application-label:" | sed -e "s/.*application-label:'//" -e "s/'.*//")
+    packageName=$(echo "$apkInfo" | grep name | sed -e "s/.* name='//" -e "s/' .*//" | head -1)
+    outVersion=$(echo "$apkInfo" | grep versionName | sed -e "s/.* versionName='//" -e "s/' .*//" | head -1)
+    echo "  - Application: $applicationName"
+    echo "  - Package: $packageName"
+    echo "  - Version: $outVersion"
 }
 
 buildRepo() {
@@ -121,10 +107,10 @@ patchRepo() {
 downloadBins() {
     if [[ "$3" == "dev" ]]; then
         link=$(curl -s https://api.github.com/repos/"$1"/"$2"/releases | \
-            jq --raw-output '.[0].assets[] | .browser_download_url | select(endswith(".apk") or endswith(".jar"))')
+               jq -r '.[0].assets[] | .browser_download_url | select(endswith(".apk") or endswith(".jar"))')
     else
         link=$(curl -s https://api.github.com/repos/"$1"/"$2"/releases/latest | \
-            jq --raw-output '.assets[] | .browser_download_url | select(endswith(".apk") or endswith(".jar"))')
+               jq -r '.assets[] | .browser_download_url | select(endswith(".apk") or endswith(".jar"))')
     fi
     wget -q $link -O "$4" || true
     if [ ! -f "$4" ] || [ ! -s "$4" ]; then
@@ -207,9 +193,35 @@ echo "--> Starting"
 clean
 mkdir -p "$outDir"
 
+if [ ! -f "$PWD/config.json" ]; then
+    echo
+    echo "--!> No app info file found!"
+    echo
+    echo "Exiting..."
+    echo
+    clean
+    exit 1
+fi
+
 echo
 echo "--> Getting application info"
 getAppInfo "$1"
+
+if [[ "$build" == "true" ]] && [ ! -f "$HOME/.gradle/gradle.properties" ]; then
+    echo
+    echo "You need to create a Github PAT token with the link below and add it to ~/.gradle/gradle.properties"
+    echo "https://github.com/settings/tokens/new?scopes=read:packages&description=ReVanced"
+    echo
+    echo "Example:"
+    echo " $ cat ~/.gradle/gradle.properties"
+    echo " gpr.user = <github username>"
+    echo " gpr.key = <token>"
+    echo
+    echo "Exiting..."
+    echo
+    clean
+    exit 1
+fi
 
 if [ -f "$1" ]; then
     baseApk="$1"
@@ -219,9 +231,9 @@ else
     downloadApk
     baseApk="$outDir"/original.apk
 fi
-getApkInfo "$baseApk"
 
 if [ -f "$baseApk" ] && [ -s "$baseApk" ]; then
+    getApkInfo "$baseApk"
     if [[ "$build" == "true" ]]; then
         echo
         echo "--> Building revanced-patcher"
@@ -274,10 +286,10 @@ if [ -f "$baseApk" ] && [ -s "$baseApk" ]; then
     fi
 else
     echo
-    echo "--!> No valid APK was found!"
+    echo "--!> No valid APK was downloaded or found!"
 fi
 
 echo
 echo "--> Finishing"
-clean
+#clean
 echo
