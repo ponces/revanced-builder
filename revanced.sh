@@ -175,7 +175,9 @@ buildMagisk() {
         echo "    mount -o bind \$base_path \$stock_path"
         echo "    chcon u:object_r:apk_data_file:s0 \$base_path"
         echo "    sleep 10"
-        echo "    /data/adb/magisk/busybox crond -b -c \$MODPATH/common/cron"
+        echo "    /data/adb/magisk/busybox crond -b -c \$MODPATH/common/cron || true"
+        echo "    /data/adb/ap/bin/busybox crond -b -c \$MODPATH/common/cron || true"
+        echo "    /data/adb/ksu/bin/busybox crond -b -c \$MODPATH/common/cron || true"
         echo "fi"
     } > "$outDir"/magisk/service.sh
     echo "0 */1 * * * /system/bin/$detachBin" > "$outDir"/magisk/common/cron/root
