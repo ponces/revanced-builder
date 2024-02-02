@@ -30,7 +30,6 @@ getAppInfo() {
     id=$(echo $app | jq -r ".id")
     org=$(echo $app | jq -r ".org")
     version=$(echo $app | jq -r ".version")
-    moduleId=$(echo $app | jq -r ".moduleId")
     moduleName=$(echo $app | jq -r ".moduleName")
     branch=$(echo $app | jq -r ".branch")
     build=$(echo $app | jq -r ".build")
@@ -137,6 +136,7 @@ patchApk() {
 }
 
 buildMagisk() {
+    moduleId="revanced-$id"
     detachBin="detach-$id"
     mkdir -p "$outDir"/magisk/META-INF/com/google/android
     mkdir -p "$outDir"/magisk/common
@@ -298,5 +298,5 @@ fi
 
 echo
 echo "--> Finishing"
-#clean
+clean
 echo
