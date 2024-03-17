@@ -6,7 +6,7 @@
         "moduleName": "YouTube ReVanced",
         "branch": "dev",
         "build": false,
-        "magisk": true,
+        "module": true,
         "integrations": true,
         "patchOptions": [],
         "patches": [
@@ -22,7 +22,7 @@
         "moduleName": "YouTube Music ReVanced",
         "branch": "dev",
         "build": false,
-        "magisk": true,
+        "module": true,
         "integrations": false,
         "patchOptions": [],
         "patches": [
@@ -42,7 +42,7 @@
         "moduleName": "Reddit ReVanced",
         "branch": "dev",
         "build": false,
-        "magisk": true,
+        "module": true,
         "integrations": true,
         "patchOptions": [],
         "patches": [
@@ -53,11 +53,11 @@
     {
         "id": "twitter",
         "org": "x-corp",
-        "version": "10.26.0-release.0",
+        "version": "10.31.0-release.0",
         "moduleName": "Twitter ReVanced",
         "branch": "dev",
         "build": false,
-        "magisk": true,
+        "module": true,
         "integrations": true,
         "patchOptions": [],
         "patches": [

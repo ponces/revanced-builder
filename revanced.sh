@@ -33,7 +33,7 @@ getAppInfo() {
     moduleName=$(echo $app | jq -r ".moduleName")
     branch=$(echo $app | jq -r ".branch")
     build=$(echo $app | jq -r ".build")
-    magisk=$(echo $app | jq -r ".magisk")
+    module=$(echo $app | jq -r ".module")
     integrations=$(echo $app | jq -r ".integrations")
     patchOptions=$(echo $app | jq -r ".patchOptions")
     patches=$(echo $app | jq -r ".patches[]")
@@ -131,21 +131,21 @@ patchApk() {
               --options "$outDir"/options.json \
               --exclusive "$options" \
               --out "$outDir"/revanced.apk \
-              --resource-cache "$outDir"/tmp \
+              --temporary-files-path "$outDir"/tmp \
               --force "$baseApk"
 }
 
-buildMagisk() {
+buildModule() {
     moduleId="revanced-$id"
     detachBin="detach-$id"
-    mkdir -p "$outDir"/magisk/META-INF/com/google/android
-    mkdir -p "$outDir"/magisk/common
-    mkdir -p "$outDir"/magisk/common/cron
-    mkdir -p "$outDir"/magisk/system/bin
-    cp "$baseApk" "$outDir"/magisk/common/original.apk
-    cp "$outDir"/revanced.apk "$outDir"/magisk/common/revanced.apk
-    echo "#MAGISK" > "$outDir"/magisk/META-INF/com/google/android/updater-script
-    wget -q https://github.com/topjohnwu/Magisk/raw/master/scripts/module_installer.sh -O "$outDir"/magisk/META-INF/com/google/android/update-binary
+    mkdir -p "$outDir"/module/META-INF/com/google/android
+    mkdir -p "$outDir"/module/common
+    mkdir -p "$outDir"/module/common/cron
+    mkdir -p "$outDir"/module/system/bin
+    cp "$baseApk" "$outDir"/module/common/original.apk
+    cp "$outDir"/revanced.apk "$outDir"/module/common/revanced.apk
+    echo "#MAGISK" > "$outDir"/module/META-INF/com/google/android/updater-script
+    wget -q https://github.com/topjohnwu/Magisk/raw/master/scripts/module_installer.sh -O "$outDir"/module/META-INF/com/google/android/update-binary
     {
         echo "id=$moduleId"
         echo "name=$moduleName"
@@ -153,18 +153,18 @@ buildMagisk() {
         echo "versionCode=$(echo $outVersion | sed 's/\.//g')"
         echo "author=ReVanced"
         echo "description=Continuing the legacy of Vanced"
-    } > "$outDir"/magisk/module.prop
+    } > "$outDir"/module/module.prop
     {
         echo "#!/system/bin/sh"
-        echo "[ \"\$BOOTMODE\" == \"false\" ] && abort \"Installation failed! ReVanced must be installed via Magisk Manager!\""
+        echo "[ \"\$BOOTMODE\" == \"false\" ] && abort \"Installation failed! Module must be installed via module manager!\""
         echo "versionName=\$(dumpsys package $packageName | grep versionName | awk -F\"=\" '{print \$2}')"
         echo "[[ \"\$versionName\" != \"$outVersion\" ]] && pm install -r \$MODPATH/common/original.apk"
-    } > "$outDir"/magisk/customize.sh
+    } > "$outDir"/module/customize.sh
     {
         echo "#!/system/bin/sh"
         echo "stock_path=\$(pm path $packageName | grep base | sed 's/package://g')"
         echo "[ ! -z \$stock_path ] && umount -l \$stock_path"
-    } > "$outDir"/magisk/post-fs-data.sh
+    } > "$outDir"/module/post-fs-data.sh
     {
         echo "#!/system/bin/sh"
         echo "while [ \"\$(getprop sys.boot_completed | tr -d '\r')\" != \"1\" ]; do sleep 1; done"
@@ -179,8 +179,8 @@ buildMagisk() {
         echo "    /data/adb/ap/bin/busybox crond -b -c \$MODPATH/common/cron || true"
         echo "    /data/adb/ksu/bin/busybox crond -b -c \$MODPATH/common/cron || true"
         echo "fi"
-    } > "$outDir"/magisk/service.sh
-    echo "0 */1 * * * /system/bin/$detachBin" > "$outDir"/magisk/common/cron/root
+    } > "$outDir"/module/service.sh
+    echo "0 */1 * * * /system/bin/$detachBin" > "$outDir"/module/common/cron/root
     {
         echo "#!/system/bin/sh"
         echo "lib_db=/data/data/com.android.vending/databases/library.db"
@@ -189,8 +189,8 @@ buildMagisk() {
         echo "sqlite3 \$lib_db \"UPDATE ownership SET doc_type = '25' WHERE doc_id = '$packageName'\""
         echo "sqlite3 \$app_db \"UPDATE appstate SET auto_update = '2' WHERE package_name = '$packageName'\""
         echo "rm -rf /data/data/com.android.vending/cache"
-    } > "$outDir"/magisk/system/bin/$detachBin
-    pushd "$outDir"/magisk >/dev/null
+    } > "$outDir"/module/system/bin/$detachBin
+    pushd "$outDir"/module >/dev/null
     zip -qr "$outDir"/../"$moduleId"_v"$outVersion".zip *
     popd >/dev/null
 }
@@ -280,10 +280,10 @@ if [ -f "$baseApk" ] && [ -s "$baseApk" ]; then
     patchApk
 
     if [ -f "$outDir"/revanced.apk ]; then
-        if [[ "$magisk" == "true" ]]; then
+        if [[ "$module" == "true" ]]; then
             echo
-            echo "--> Building Magisk module"
-            buildMagisk
+            echo "--> Building ReVanced module"
+            buildModule
         else
             cp "$outDir"/revanced.apk "$outDir"/../"$moduleId"_v"$outVersion".apk
         fi
