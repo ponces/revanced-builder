@@ -96,11 +96,11 @@ buildRepo() {
     git clone -q https://github.com/"$1"/"$2" -b "$3" "$outDir"/repos/"$2"
     pushd "$outDir"/repos/"$2" >/dev/null
     patchRepo "$2"
-    bash ./gradlew "$4"
+    [[ "$2" == "revanced-integrations" ]] && bash ./gradlew assembleRelease || bash ./gradlew build
     popd >/dev/null
-    cp "$outDir"/repos/"$2"/app/build/outputs/apk/release/*.apk "$5" 2>/dev/null || true
-    cp "$outDir"/repos/"$2"/build/libs/*.jar "$5" 2>/dev/null || true
-    cp "$outDir"/repos/"$2"/build/libs/*-all.jar "$5" 2>/dev/null || true
+    cp "$outDir"/repos/"$2"/app/build/outputs/apk/release/*.apk "$4" 2>/dev/null || true
+    cp "$outDir"/repos/"$2"/build/libs/*.jar "$4" 2>/dev/null || true
+    cp "$outDir"/repos/"$2"/build/libs/*-all.jar "$4" 2>/dev/null || true
     rm -rf "$outDir"/repos/"$2"
 }
 
@@ -132,7 +132,10 @@ patchApk() {
               --exclusive "$options" \
               --out "$outDir"/revanced.apk \
               --temporary-files-path "$outDir"/tmp \
-              --force "$baseApk"
+              --force --warn "$baseApk" 2>&1 | tee "$outDir"/revanced.log
+    if grep -q -e WARN -e SEVERE "$outDir"/revanced.log; then
+        rm -f "$outDir"/revanced.apk
+    fi
 }
 
 buildModule() {
@@ -244,20 +247,20 @@ if [ -f "$baseApk" ] && [ -s "$baseApk" ]; then
     if [[ "$build" == "true" ]]; then
         echo
         echo "--> Building revanced-patcher"
-        buildRepo revanced revanced-patcher "$branch" build "$outDir"/revanced-patcher.jar
+        buildRepo revanced revanced-patcher "$branch" "$outDir"/revanced-patcher.jar
 
         echo
         echo "--> Building revanced-cli"
-        buildRepo revanced revanced-cli "$branch" build "$outDir"/revanced-cli.jar
+        buildRepo revanced revanced-cli "$branch" "$outDir"/revanced-cli.jar
 
         echo
         echo "--> Building revanced-patches"
-        buildRepo revanced revanced-patches "$branch" build "$outDir"/revanced-patches.jar
+        buildRepo revanced revanced-patches "$branch" "$outDir"/revanced-patches.jar
 
         if [[ "$integrations" == "true" ]]; then
             echo
             echo "--> Building revanced-integrations"
-            buildRepo revanced revanced-integrations "$branch" assembleRelease "$outDir"/revanced-integrations.apk
+            buildRepo revanced revanced-integrations "$branch" "$outDir"/revanced-integrations.apk
         fi
     else
         echo
