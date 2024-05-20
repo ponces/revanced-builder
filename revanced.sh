@@ -138,26 +138,14 @@ patchApk() {
     fi
 }
 
-downloadDetach() {
-    link=$(curl -s https://api.github.com/repos/j-hc/zygisk-detach/releases/latest | \
-               jq -r '.assets[] | .browser_download_url | select(endswith(".zip"))')
-    wget -q $link -O "$outDir"/detach.zip
-    unzip -q "$outDir"/detach.zip -d "$outDir"/detach
-    cp "$outDir"/detach/system/bin/detach-arm64 "$outDir"/module/system/bin/detach
-    cp -r "$outDir"/detach/zygisk "$outDir"/module
-}
-
 buildModule() {
     moduleId="revanced-$id"
-    mkdir -p "$outDir"/module/META-INF/com/google/android
     mkdir -p "$outDir"/module/common
-    mkdir -p "$outDir"/module/system/bin
-    downloadDetach
     cp "$baseApk" "$outDir"/module/common/original.apk
     cp "$outDir"/revanced.apk "$outDir"/module/common/revanced.apk
+    mkdir -p "$outDir"/module/META-INF/com/google/android
     echo "#MAGISK" > "$outDir"/module/META-INF/com/google/android/updater-script
     wget -q https://github.com/topjohnwu/Magisk/raw/master/scripts/module_installer.sh -O "$outDir"/module/META-INF/com/google/android/update-binary
-    echo "$packageName" >> "$outDir"/module/detach.txt
     tee "$outDir"/module/module.prop >/dev/null << EOF
 id=$moduleId
 name=$moduleName
@@ -171,12 +159,8 @@ EOF
 [ "\$BOOTMODE" == "false" ] && abort "Installation failed! Module must be installed via module manager!"
 versionName=\$(dumpsys package $packageName | grep versionName | awk -F"=" '{print \$2}')
 [[ "\$versionName" != "$outVersion" ]] && pm install -r \$MODPATH/common/original.apk
-[ -f /system/bin/detach ] && [ ! -f \$NVBASE/modules/$moduleId/system/bin/detach ] && rm -rf \$MODPATH/system
-DMODPATH=/data/adb/modules/zygisk-detach
-mkdir -p \$DMODPATH
-touch \$DMODPATH/disable
-grep -q "$packageName" \$DMODPATH/detach.txt || echo "$packageName" >> \$DMODPATH/detach.txt
-detach --serialize \$DMODPATH/detach.txt \$DMODPATH/detach.bin
+sh \$MODPATH/detach.sh
+rm -f \$MODPATH/detach.sh
 EOF
     tee "$outDir"/module/post-fs-data.sh >/dev/null << EOF
 #!/system/bin/sh
@@ -193,6 +177,20 @@ if [ ! -z \$stock_path ]; then
     mount -o bind \$base_path \$stock_path
     chcon u:object_r:apk_data_file:s0 \$base_path
 fi
+EOF
+    tee "$outDir"/module/detach.sh >/dev/null << EOF
+#!/system/bin/sh
+TMPDIR=/dev/tmp
+MODPATH=/data/adb/modules/zygisk-detach
+if [ ! -d \$MODPATH ]; then
+    mkdir -p \$TMPDIR
+    mkdir -p \$MODPATH
+    curl -sL  https://github.com/j-hc/zygisk-detach/releases/download/v1.15.0/zygisk-detach-v1.15.0.zip -o \$TMPDIR/detach.zip
+    unzip -qo \$TMPDIR/detach.zip -x 'META-INF/*' customize.sh -d \$MODPATH
+    cp -f \$MODPATH/system/bin/detach-arm64 \$MODPATH/system/bin/detach
+    rm -f \$MODPATH/system/bin/detach-*
+fi
+grep -q "$packageName" \$MODPATH/detach.txt || echo "$packageName" >> \$MODPATH/detach.txt
 EOF
     pushd "$outDir"/module >/dev/null
     zip -qr "$outDir"/../"$moduleId"_v"$outVersion".zip *
