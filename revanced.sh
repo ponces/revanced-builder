@@ -138,61 +138,62 @@ patchApk() {
     fi
 }
 
+downloadDetach() {
+    link=$(curl -s https://api.github.com/repos/j-hc/zygisk-detach/releases/latest | \
+               jq -r '.assets[] | .browser_download_url | select(endswith(".zip"))')
+    wget -q $link -O "$outDir"/detach.zip
+    unzip -q "$outDir"/detach.zip -d "$outDir"/detach
+    cp "$outDir"/detach/system/bin/detach-arm64 "$outDir"/module/system/bin/detach
+    cp -r "$outDir"/detach/zygisk "$outDir"/module
+}
+
 buildModule() {
     moduleId="revanced-$id"
-    detachBin="detach-$id"
     mkdir -p "$outDir"/module/META-INF/com/google/android
     mkdir -p "$outDir"/module/common
-    mkdir -p "$outDir"/module/common/cron
     mkdir -p "$outDir"/module/system/bin
+    downloadDetach
     cp "$baseApk" "$outDir"/module/common/original.apk
     cp "$outDir"/revanced.apk "$outDir"/module/common/revanced.apk
     echo "#MAGISK" > "$outDir"/module/META-INF/com/google/android/updater-script
     wget -q https://github.com/topjohnwu/Magisk/raw/master/scripts/module_installer.sh -O "$outDir"/module/META-INF/com/google/android/update-binary
-    {
-        echo "id=$moduleId"
-        echo "name=$moduleName"
-        echo "version=$outVersion"
-        echo "versionCode=$(echo $outVersion | sed 's/\.//g')"
-        echo "author=ReVanced"
-        echo "description=Continuing the legacy of Vanced"
-    } > "$outDir"/module/module.prop
-    {
-        echo "#!/system/bin/sh"
-        echo "[ \"\$BOOTMODE\" == \"false\" ] && abort \"Installation failed! Module must be installed via module manager!\""
-        echo "versionName=\$(dumpsys package $packageName | grep versionName | awk -F\"=\" '{print \$2}')"
-        echo "[[ \"\$versionName\" != \"$outVersion\" ]] && pm install -r \$MODPATH/common/original.apk"
-    } > "$outDir"/module/customize.sh
-    {
-        echo "#!/system/bin/sh"
-        echo "stock_path=\$(pm path $packageName | grep base | sed 's/package://g')"
-        echo "[ ! -z \$stock_path ] && umount -l \$stock_path"
-    } > "$outDir"/module/post-fs-data.sh
-    {
-        echo "#!/system/bin/sh"
-        echo "while [ \"\$(getprop sys.boot_completed | tr -d '\r')\" != \"1\" ]; do sleep 1; done"
-        echo "MODPATH=\${0%/*}"
-        echo "base_path=\$MODPATH/common/revanced.apk"
-        echo "stock_path=\$(pm path $packageName | grep base | sed 's/package://g')"
-        echo "if [ ! -z \$stock_path ]; then"
-        echo "    mount -o bind \$base_path \$stock_path"
-        echo "    chcon u:object_r:apk_data_file:s0 \$base_path"
-        echo "    sleep 10"
-        echo "    /data/adb/magisk/busybox crond -b -c \$MODPATH/common/cron || true"
-        echo "    /data/adb/ap/bin/busybox crond -b -c \$MODPATH/common/cron || true"
-        echo "    /data/adb/ksu/bin/busybox crond -b -c \$MODPATH/common/cron || true"
-        echo "fi"
-    } > "$outDir"/module/service.sh
-    echo "0 */1 * * * /system/bin/$detachBin" > "$outDir"/module/common/cron/root
-    {
-        echo "#!/system/bin/sh"
-        echo "lib_db=/data/data/com.android.vending/databases/library.db"
-        echo "app_db=/data/data/com.android.vending/databases/localappstate.db"
-        echo "am force-stop com.android.vending"
-        echo "sqlite3 \$lib_db \"UPDATE ownership SET doc_type = '25' WHERE doc_id = '$packageName'\""
-        echo "sqlite3 \$app_db \"UPDATE appstate SET auto_update = '2' WHERE package_name = '$packageName'\""
-        echo "rm -rf /data/data/com.android.vending/cache"
-    } > "$outDir"/module/system/bin/$detachBin
+    echo "$packageName" >> "$outDir"/module/detach.txt
+    tee "$outDir"/module/module.prop >/dev/null << EOF
+id=$moduleId
+name=$moduleName
+version=$outVersion
+versionCode=$(echo $outVersion | sed 's/\.//g')
+author=ReVanced
+description=Continuing the legacy of Vanced
+EOF
+    tee "$outDir"/module/customize.sh >/dev/null << EOF
+#!/system/bin/sh
+[ "\$BOOTMODE" == "false" ] && abort "Installation failed! Module must be installed via module manager!"
+versionName=\$(dumpsys package $packageName | grep versionName | awk -F"=" '{print \$2}')
+[[ "\$versionName" != "$outVersion" ]] && pm install -r \$MODPATH/common/original.apk
+[ -f /system/bin/detach ] && [ ! -f \$NVBASE/modules/$moduleId/system/bin/detach ] && rm -rf \$MODPATH/system
+DMODPATH=/data/adb/modules/zygisk-detach
+mkdir -p \$DMODPATH
+touch \$DMODPATH/disable
+grep -q "$packageName" \$DMODPATH/detach.txt || echo "$packageName" >> \$DMODPATH/detach.txt
+detach --serialize \$DMODPATH/detach.txt \$DMODPATH/detach.bin
+EOF
+    tee "$outDir"/module/post-fs-data.sh >/dev/null << EOF
+#!/system/bin/sh
+stock_path=\$(pm path $packageName | grep base | sed 's/package://g')
+[ ! -z \$stock_path ] && umount -l \$stock_path
+EOF
+    tee "$outDir"/module/service.sh >/dev/null << EOF
+#!/system/bin/sh
+while [ "\$(getprop sys.boot_completed | tr -d '\r')" != "1" ]; do sleep 1; done
+MODPATH=\${0%/*}
+base_path=\$MODPATH/common/revanced.apk
+stock_path=\$(pm path $packageName | grep base | sed 's/package://g')
+if [ ! -z \$stock_path ]; then
+    mount -o bind \$base_path \$stock_path
+    chcon u:object_r:apk_data_file:s0 \$base_path
+fi
+EOF
     pushd "$outDir"/module >/dev/null
     zip -qr "$outDir"/../"$moduleId"_v"$outVersion".zip *
     popd >/dev/null
