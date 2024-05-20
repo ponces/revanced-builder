@@ -189,6 +189,12 @@ if [ ! -d \$MODPATH ]; then
     unzip -qo \$TMPDIR/detach.zip -x 'META-INF/*' customize.sh -d \$MODPATH
     cp -f \$MODPATH/system/bin/detach-arm64 \$MODPATH/system/bin/detach
     rm -f \$MODPATH/system/bin/detach-*
+    chown -R 0:0 \$MODPATH
+    chown -R 0:2000 \$MODPATH/system/bin
+    find \$MODPATH -type d -exec chmod 0755 {} \;
+    find \$MODPATH -type f -exec chmod 0644 {} \;
+    find \$MODPATH/system/bin -type f -exec chmod 0755 {} \;
+    chcon -R u:object_r:system_file:s0 \$MODPATH
 fi
 grep -q "$packageName" \$MODPATH/detach.txt || echo "$packageName" >> \$MODPATH/detach.txt
 EOF
