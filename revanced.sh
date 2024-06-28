@@ -119,6 +119,9 @@ downloadBins() {
     wget -q $link -O "$4" || true
     if [ ! -f "$4" ] || [ ! -s "$4" ]; then
         echo "--!> No valid release of $2 was found!"
+        echo
+        clean
+        exit 1
     fi
 }
 
@@ -212,8 +215,6 @@ if [ ! -f "$PWD/config.json" ]; then
     echo
     echo "--!> No app info file found!"
     echo
-    echo "Exiting..."
-    echo
     clean
     exit 1
 fi
@@ -231,8 +232,6 @@ if [[ "$build" == "true" ]] && [ ! -f "$HOME/.gradle/gradle.properties" ]; then
     echo " $ cat ~/.gradle/gradle.properties"
     echo " gpr.user = <github username>"
     echo " gpr.key = <token>"
-    echo
-    echo "Exiting..."
     echo
     clean
     exit 1
@@ -298,13 +297,20 @@ if [ -f "$baseApk" ] && [ -s "$baseApk" ]; then
     else
         echo
         echo "--!> Patching APK failed!"
+        echo
+        clean
+        exit 1
     fi
 else
     echo
     echo "--!> No valid APK was downloaded or found!"
+    echo
+    clean
+    exit 1
 fi
 
 echo
 echo "--> Finishing"
-clean
 echo
+clean
+exit 0
