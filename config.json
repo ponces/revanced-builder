@@ -11,7 +11,7 @@
         "patchOptions": [],
         "patches": [
             "Hide ads",
-            "Minimized playback",
+            "Remove background playback restrictions",
             "Video ads"
         ]
     },
@@ -29,7 +29,7 @@
             "Enable exclusive audio playback",
             "Hide 'Get Music Premium' label",
             "Hide music video ads",
-            "Minimized playback",
+            "Remove background playback restrictions",
             "Remove upgrade button"
         ]
     },
